@@ -1,0 +1,12 @@
+requests
+beautifulsoup4
+lxml
+fake-useragent
+pandas
+numpy
+sqlalchemy
+streamlit
+plotly
+prophet
+schedule
+python-dotenv

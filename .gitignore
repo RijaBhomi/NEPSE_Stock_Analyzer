@@ -1,0 +1,6 @@
+.env
+nepse.db
+__pycache__/
+*.pyc
+venv/
+logs/
