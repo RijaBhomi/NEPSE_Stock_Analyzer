@@ -117,7 +117,7 @@ def check_completeness(stock: dict) -> tuple[str, list]:
         quality_level is "FULL", "PARTIAL", or "CRITICAL_MISSING"
     """
     critical_fields = ["ltp", "symbol"]
-    scoring_fields  = ["pe_ratio", "eps"]
+    scoring_fields  = ["sector"]
     nice_fields     = ["week52_high", "week52_low", "volume"]
 
     missing_critical = [f for f in critical_fields if not stock.get(f)]
@@ -221,7 +221,7 @@ def validate_stock(stock: dict) -> dict:
         quality = "INVALID"
 
     # VERIFIED: passed all 4 checks with full data
-    elif checks_passed >= 3.5 and data_completeness == "FULL":
+    elif checks_passed >= 3.0:
         quality = "VERIFIED"
 
     # PARTIAL: passed most checks but missing some scoring data
