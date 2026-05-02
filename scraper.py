@@ -358,6 +358,30 @@ def scrape_nepse_index():
     logger.warning("Could not find NEPSE index — will retry next run")
     return None
 
+def compute_52week_from_db(symbol: str) -> dict:
+    """
+    Calculates 52-week high/low from our own collected price history.
+    Returns empty dict if less than 7 days of data (not meaningful yet).
+    """
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT MAX(high), MIN(low), COUNT(*)
+            FROM daily_prices
+            WHERE symbol = :symbol
+              AND high IS NOT NULL
+              AND low IS NOT NULL
+              AND date >= date('now', '-365 days')
+        """), {"symbol": symbol})
+        row = result.fetchone()
+
+    if not row or not row[2] or row[2] < 7:
+        return {}  # need at least 7 days to be meaningful
+
+    return {
+        "week52_high": row[0],
+        "week52_low":  row[1],
+    }
+
 
 # ── main run ───────────────────────────────────────────────────
 def run_scraper(enrich_details=False):
@@ -394,6 +418,31 @@ def run_scraper(enrich_details=False):
 
     # step 3: save to database
     save_prices(stocks)
+
+    # ── NEW: enrich 52-week from our own DB history ────────────
+    logger.info("Computing 52-week high/low from price history...")
+    today = date.today().isoformat()
+    updated = 0
+    with engine.connect() as conn:
+        for stock in stocks:
+            sym = stock.get("symbol")
+            if not sym:
+                continue
+            w52 = compute_52week_from_db(sym)
+            if w52:
+                conn.execute(text("""
+                    UPDATE daily_prices
+                    SET week52_high = :high, week52_low = :low
+                    WHERE symbol = :symbol AND date = :date
+                """), {
+                    "high": w52["week52_high"],
+                    "low":  w52["week52_low"],
+                    "symbol": sym,
+                    "date": today
+                })
+                updated += 1
+        conn.commit()
+    logger.info(f"Updated 52-week data for {updated} stocks from history")
 
     # step 4: save NEPSE index
     index_val = scrape_nepse_index()
