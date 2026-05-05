@@ -20,11 +20,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def run_daily_pipeline():
-    """Runs scraper → indicators every day."""
+    """Runs scraper → indicators → market regime → scorer every day."""
     logger.info("=" * 50)
     logger.info(f"Pipeline started: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
-    # step 1: scrape prices (fast — no detail enrichment on daily runs)
+    # step 1: scrape prices
     logger.info("Step 1: Scraping prices...")
     from scraper import run_scraper
     run_scraper(enrich_details=False)
@@ -34,9 +34,24 @@ def run_daily_pipeline():
     from indicators import run_indicators
     run_indicators()
 
+    # step 3: market regime
+    logger.info("Step 3: Checking market regime...")
+    from market_regime import determine_regime, save_regime
+    regime_data = determine_regime()
+    save_regime(regime_data)
+    logger.info(f"Regime: {regime_data['regime']}")
+
+    # step 4: score all stocks
+    logger.info("Step 4: Scoring stocks...")
+    from scorer import run_scorer
+    results = run_scorer()
+    if results:
+        top = results[0]
+        logger.info(f"Top stock today: {top['symbol']} "
+                    f"(score {top['total_score']}/12, {top['signal']})")
+
     logger.info("Pipeline complete!")
     logger.info("=" * 50)
-
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--once":
