@@ -1,11 +1,10 @@
 requests
 beautifulsoup4
 lxml
-fake-useragent
 pandas
 numpy
 sqlalchemy
-streamlit
+streamlit==1.43.2
 plotly
 prophet
 schedule
