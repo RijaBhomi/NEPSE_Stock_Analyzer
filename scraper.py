@@ -25,7 +25,9 @@ logging.basicConfig(
 logger= logging.getLogger(__name__)
 
 # database
-DB_URL = "sqlite:///nepse.db"
+import os
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nepse.db")
+DB_URL  = f"sqlite:///{DB_PATH}"
 engine = create_engine(DB_URL, echo=False)
 
 # headers
@@ -467,3 +469,6 @@ if __name__ == "__main__":
             print(f"  {s['symbol']:10} LTP: {s['ltp']:>8}  Change: {s['pct_change']:>6}%  Vol: {s['volume']}")
     else:
         print(" No data scraped — check logs/scraper.log for details")
+
+
+
