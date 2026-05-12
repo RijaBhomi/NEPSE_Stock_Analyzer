@@ -1,0 +1,1 @@
+[![Daily NEPSE Pipeline](https://github.com/RijaBhomi/NEPSE_Stock_Analyzer/actions/workflows/daily_pipeline.yml/badge.svg)](https://github.com/RijaBhomi/NEPSE_Stock_Analyzer/actions/workflows/daily_pipeline.yml)
