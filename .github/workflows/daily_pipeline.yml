@@ -1,28 +1,33 @@
-# Purpose: Run the NEPSE pipeline automatically everyday at 4 pm
+# .github/workflows/daily_pipeline.yml
+# ─────────────────────────────────────────────────────────────────
+# PURPOSE: Run the NEPSE pipeline automatically every day at 4pm
+# Nepal time (10:15 UTC) without needing your laptop to be on.
+#
+# HOW GITHUB ACTIONS WORKS:
+# GitHub has its own servers (called "runners") that sit idle 24/7.
+# This file tells those servers what to do and when.
+#
+# The file has 3 main sections:
+# 1. TRIGGER — when should this run?
+# 2. ENVIRONMENT — what machine setup do we need?
+# 3. STEPS — what commands to run, in order
+# ─────────────────────────────────────────────────────────────────
 
-# how GITHUB ACTIONS works:
-# github has its own servers called runners that sit idle 24/7
-# this file tells those runners what to do and when
-
-# 3 main sections of this file:
-# 1. TRIGGER- when to run the pipeline
-# 2. ENVIRONMENT- what machine setup do we need
-# 3. STEPS- what commands to run to execute the pipeline, in order
-
-name: Daily NEPSE Pipeline  # shows up in GitHub's action tab
+name: Daily NEPSE Pipeline   # this name shows up in GitHub's Actions tab
 
 on:
   # TRIGGER 1: Run on a schedule
   # Uses "cron" syntax: minute hour day month weekday
   # "15 10 * * 0-4" means:
-  # mintue 15, hour 10, anny day, any month, Sunday-Thursday
-  # Nepal is UTC+5:45, so 10:15 UTC is 4:00 PM in Nepal
+  #   minute 15, hour 10 (UTC), any day, any month, Sunday–Thursday (0=Sun, 4=Thu)
+  # Nepal is UTC+5:45, so 10:15 UTC = 4:00 PM Nepal time
+  # NEPSE trades Sunday–Thursday so we only run on those days
   schedule:
-    - cron: '15 10 * * 0-4'  # every weekday at 4:15 PM Nepal time
-  
+    - cron: "15 10 * * 0,1,2,3,4"
 
-  # TRIGGER 2: Run manually from GitHub's action tab
-  # Go to repo -> actions tab -> click on this workflow -> click "Run workflow" button
+  # TRIGGER 2: Also allow manual trigger from GitHub's website
+  # Go to your repo → Actions tab → Daily NEPSE Pipeline → Run workflow
+  # Useful for testing or if you want to force a run
   workflow_dispatch:
     inputs:
       reason:
@@ -40,11 +45,11 @@ jobs:
     permissions:
       contents: write
 
-     steps:
+    steps:
 
       # ── STEP 1: Download your code ─────────────────────────
       # "Checkout" means GitHub's server downloads your repo
-      # so the next steps can actually use my files
+      # so the next steps can actually use your files
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
