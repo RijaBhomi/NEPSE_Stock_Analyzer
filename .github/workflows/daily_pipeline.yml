@@ -1,0 +1,126 @@
+# Purpose: Run the NEPSE pipeline automatically everyday at 4 pm
+
+# how GITHUB ACTIONS works:
+# github has its own servers called runners that sit idle 24/7
+# this file tells those runners what to do and when
+
+# 3 main sections of this file:
+# 1. TRIGGER- when to run the pipeline
+# 2. ENVIRONMENT- what machine setup do we need
+# 3. STEPS- what commands to run to execute the pipeline, in order
+
+name: Daily NEPSE Pipeline  # shows up in GitHub's action tab
+
+on:
+  # TRIGGER 1: Run on a schedule
+  # Uses "cron" syntax: minute hour day month weekday
+  # "15 10 * * 0-4" means:
+  # mintue 15, hour 10, anny day, any month, Sunday-Thursday
+  # Nepal is UTC+5:45, so 10:15 UTC is 4:00 PM in Nepal
+  schedule:
+    - cron: '15 10 * * 0-4'  # every weekday at 4:15 PM Nepal time
+  
+
+  # TRIGGER 2: Run manually from GitHub's action tab
+  # Go to repo -> actions tab -> click on this workflow -> click "Run workflow" button
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why are you running this manually?"
+        required: false
+        default: "Manual trigger"
+
+jobs:
+  run-pipeline:
+    # use the latest Ubuntu Linux server (free on GitHub)
+    runs-on: ubuntu-latest
+
+    # give this job permission to write back to the repo
+    # (needed so it can commit the updated nepse.db)
+    permissions:
+      contents: write
+
+     steps:
+
+      # ── STEP 1: Download your code ─────────────────────────
+      # "Checkout" means GitHub's server downloads your repo
+      # so the next steps can actually use my files
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN is automatically provided by GitHub — no setup needed
+
+      # ── STEP 2: Install Python ─────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── STEP 3: Cache dependencies ─────────────────────────
+      # Caching means: "if requirements.txt hasn't changed,
+      # reuse the packages from last time instead of reinstalling"
+      # This makes the workflow 3-4 minutes faster
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ── STEP 4: Install your dependencies ──────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── STEP 5: Run the pipeline ────────────────────────────
+      # This is the main step — runs exactly what you do manually
+      - name: Run NEPSE pipeline
+        run: python pipeline.py --once
+
+      # ── STEP 6: Commit updated database back to GitHub ─────
+      # After the pipeline runs, nepse.db has new data in it.
+      # This step commits that updated file back to your repo.
+      # Streamlit Cloud watches your repo and auto-refreshes
+      # when it sees a new commit — so the dashboard updates too.
+      - name: Commit updated database
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+          git add nepse.db
+          # only commit if there are actual changes
+          # (git diff --staged --quiet exits 0 if no changes, 1 if changes)
+          if ! git diff --staged --quiet; then
+            git commit -m "data: auto-update nepse.db — $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+            echo "✅ Database updated and pushed to GitHub"
+          else
+            echo "ℹ️ No changes to database — skipping commit"
+          fi
+
+      # ── STEP 7: Report what happened ───────────────────────
+      # This prints a summary in the Actions log so you can
+      # check how many stocks were scraped without reading logs
+      - name: Pipeline summary
+        run: |
+          python -c "
+          from sqlalchemy import create_engine, text
+          from datetime import date
+          import os
+          DB_PATH = os.path.join(os.path.dirname(os.path.abspath('scraper.py')), 'nepse.db')
+          engine = create_engine(f'sqlite:///{DB_PATH}')
+          with engine.connect() as conn:
+              today = date.today().isoformat()
+              r1 = conn.execute(text('SELECT COUNT(*) FROM daily_prices WHERE date = :d'), {'d': today})
+              r2 = conn.execute(text('SELECT COUNT(*) FROM scores WHERE date = :d'), {'d': today})
+              r3 = conn.execute(text('SELECT MAX(total_score), signal FROM scores WHERE date = :d GROUP BY signal ORDER BY MAX(total_score) DESC LIMIT 1'), {'d': today})
+              prices = r1.fetchone()[0]
+              scored = r2.fetchone()[0]
+              top    = r3.fetchone()
+          print(f'📊 Stocks scraped today: {prices}')
+          print(f'🏆 Stocks scored today:  {scored}')
+          if top:
+              print(f'⭐ Top signal: {top[1]} (score {top[0]}/12)')
+          "

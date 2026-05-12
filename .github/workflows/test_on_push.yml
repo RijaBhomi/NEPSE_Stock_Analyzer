@@ -1,0 +1,129 @@
+# PURPOSE: Every time you push code, run basic checks to make sure
+# nothing is broken before it reaches the live dashboard.
+#
+# This is the CI (Continuous Integration) part.
+# It catches bugs immediately rather than discovering them hours
+# later when you're trying to demo the project.
+
+name: Code Quality Check
+
+on:
+  push:
+    branches: [ main ]
+    # only run when these files change — no point running
+    # if you only updated README or nepse.db
+    paths:
+      - "*.py"
+      - "requirements.txt"
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── TEST 1: Import check ────────────────────────────────
+      # Verifies all your Python files can be imported without
+      # crashing — catches syntax errors and missing imports
+      - name: Check all modules import correctly
+        run: |
+          python -c "import scraper;       print('✅ scraper.py')"
+          python -c "import validator;     print('✅ validator.py')"
+          python -c "import indicators;    print('✅ indicators.py')"
+          python -c "import scorer;        print('✅ scorer.py')"
+          python -c "import market_regime; print('✅ market_regime.py')"
+          python -c "import backtest;      print('✅ backtest.py')"
+          python -c "import dashboard;     print('✅ dashboard.py')"
+
+      # ── TEST 2: Scraper health check ────────────────────────
+      # Actually visits merolagani and checks it can get data
+      # If merolagani changes their HTML, this catches it
+      - name: Scraper health check
+        run: |
+          python -c "
+          from scraper import scrape_live_market
+          stocks = scrape_live_market()
+          assert len(stocks) > 100, f'Expected 100+ stocks, got {len(stocks)}'
+          assert stocks[0].get('symbol'), 'Missing symbol field'
+          assert stocks[0].get('ltp'), 'Missing LTP field'
+          print(f'✅ Scraper OK — fetched {len(stocks)} stocks')
+          print(f'   Sample: {stocks[0][\"symbol\"]} @ Rs {stocks[0][\"ltp\"]}')
+          "
+
+      # ── TEST 3: Validator logic check ──────────────────────
+      # Tests the validator with known good and bad data
+      - name: Validator logic check
+        run: |
+          python -c "
+          from validator import validate_stock
+          from datetime import date
+
+          # test a good stock — should be VERIFIED
+          good = {
+              'symbol': 'NABIL', 'ltp': 450.0,
+              'sector': 'Commercial Bank', 'volume': 5000,
+              'week52_high': 600.0, 'week52_low': 300.0,
+              'scraped_at': date.today().isoformat(),
+              'pe_ratio': None, 'eps': None
+          }
+          result = validate_stock(good)
+          assert result['data_quality'] != 'INVALID', 'Good stock should not be INVALID'
+          print(f'✅ Good stock validation: {result[\"data_quality\"]}')
+
+          # test a penny stock — should be INVALID
+          bad = {
+              'symbol': 'JUNK', 'ltp': 8.0,
+              'sector': 'Others', 'volume': 100,
+              'scraped_at': date.today().isoformat(),
+              'pe_ratio': None, 'eps': None
+          }
+          result = validate_stock(bad)
+          assert result['data_quality'] == 'INVALID', 'Penny stock should be INVALID'
+          print(f'✅ Penny stock correctly rejected: {result[\"data_quality\"]}')
+          "
+
+      # ── TEST 4: Scorer logic check ──────────────────────────
+      # Tests the scoring functions with known inputs
+      - name: Scorer logic check
+        run: |
+          python -c "
+          from scorer import score_52week_position, score_rsi
+
+          # stock at bottom 10% of range should score 3 pts
+          pts, reason = score_52week_position(310, 600, 300)
+          assert pts == 3, f'Expected 3 pts, got {pts}. Reason: {reason}'
+          print(f'✅ 52-week scoring: {pts} pts — {reason}')
+
+          # RSI under 30 rising should score 3 pts
+          pts, reason = score_rsi(28, 'RISING')
+          assert pts == 3, f'Expected 3 pts, got {pts}'
+          print(f'✅ RSI scoring: {pts} pts — {reason}')
+
+          # RSI under 30 falling should score 0 pts (RSI trap)
+          pts, reason = score_rsi(25, 'FALLING')
+          assert pts == 0, f'Expected 0 pts, got {pts}'
+          print(f'✅ RSI trap correctly scored 0: {reason}')
+          "
+
+      - name: All checks passed
+        run: echo "🎉 All CI checks passed — safe to deploy!"
