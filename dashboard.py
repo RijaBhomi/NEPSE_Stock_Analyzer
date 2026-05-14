@@ -98,7 +98,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-DB_URL = "sqlite:///nepse.db"
+import os
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nepse.db")
+DB_URL  = f"sqlite:///{DB_PATH}"
 engine = create_engine(DB_URL, echo=False)
 
 CHART_BG   = "rgba(0,0,0,0)"
@@ -641,8 +643,16 @@ def render_footer():
 # MAIN
 # ══════════════════════════════════════════════════════════════════
 def main():
-    today = date.today().isoformat()
+    # use the most recent date that has data
+    # this avoids timezone issues between Streamlit Cloud (UTC)
+    # and Nepal time (UTC+5:45)
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT MAX(date) FROM scores"))
+        latest_date = result.fetchone()[0]
+
+    today = latest_date if latest_date else date.today().isoformat()
     df    = load_scores(today)
+    
     regime, regime_desc = get_regime()
 
     render_navbar(today, len(df))
