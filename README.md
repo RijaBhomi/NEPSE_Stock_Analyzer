@@ -1,12 +1,7 @@
-[![Daily NEPSE Pipeline](https://github.com/RijaBhomi/NEPSE_Stock_Analyzer/actions/workflows/daily_pipeline.yml/badge.svg)](https://github.com/RijaBhomi/NEPSE_Stock_Analyzer/actions/workflows/daily_pipeline.yml)
 
-# 💎 NEPSE Gem Finder — Stock Screener for Nepali Investors
+# 💎 NEPSE Stock Analyzer
 
 [![Daily NEPSE Pipeline](https://github.com/RijaBhomi/NEPSE_Stock_Analyzer/actions/workflows/daily_pipeline.yml/badge.svg)](https://github.com/RijaBhomi/NEPSE_Stock_Analyzer/actions/workflows/daily_pipeline.yml)
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
-![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red?logo=streamlit)
-![SQLite](https://img.shields.io/badge/Database-SQLite-lightgrey?logo=sqlite)
-![License](https://img.shields.io/badge/License-MIT-green)
 
 A fully automated, data-driven stock screening tool built specifically for the **Nepal Stock Exchange (NEPSE)**. Every day after 4 PM NPT, it scrapes live market data, computes technical indicators, scores all listed stocks on a 0–12 scale, and surfaces them on an interactive Streamlit dashboard — complete with market regime detection, sector filtering, and plain-English explanations for every score.
 
@@ -294,18 +289,6 @@ See `requirements.txt` for exact pinned versions.
 - Portfolio tracking — mark stocks as held and monitor score changes
 - Candlestick charts with volume overlay in the Deep Dive section
 - Sector-relative scoring (compare a stock's P/E to sector median)
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you find a bug, want to add a feature, or want to improve sector classification accuracy, please open an issue or submit a pull request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add your feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
 
 ---
 
